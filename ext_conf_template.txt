@@ -1,0 +1,9 @@
+  # cat=basic; type=string; label=Field to check links in (seperate by spaces)
+field_linkservice = tt_content.bodytext
+
+  # cat=basic; type=int[1-720]; label=Default validity period of a link i hours
+validity_period = 48
+
+  # cat=basic; type=int[50-500]; label=Records in one round
+records_per_run = 100
+
