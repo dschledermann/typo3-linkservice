@@ -1,9 +1,15 @@
   # cat=basic; type=string; label=Field to check links in (seperate by spaces)
 field_linkservice = tt_content.bodytext
 
-  # cat=basic; type=int[1-720]; label=Default validity period of a link i hours
-validity_period = 48
+  # cat=basic; type=int[1-24]; label=Validity of link(hrs)
+link_validity_period = 6
 
-  # cat=basic; type=int[50-500]; label=Records in one round
+  # cat=basic; type=int[1-720]; label=Validity of field(hrs)
+field_validity_period = 48
+
+  # cat=basic; type=int[10-500]; label=Records in one round
 records_per_run = 100
+
+  # cat=basic; type=int[1-60]; label=HTTP timeout for crawler
+http_timeout = 5
 
