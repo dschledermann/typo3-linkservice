@@ -13,3 +13,8 @@ records_per_run = 100
   # cat=basic; type=int[1-60]; label=HTTP timeout for crawler
 http_timeout = 5
 
+  # cat=basic; type=boolean; label=Report links. Check here go make the crawler make a report over changed, unavaible or faulty links.
+generate_report = 1
+
+  # cat=basic; type=int[24-720]; label=Log retention time(hrs)
+log_retention = 24

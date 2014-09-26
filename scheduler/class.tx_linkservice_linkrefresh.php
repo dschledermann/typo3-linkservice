@@ -23,7 +23,7 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
         // Setting up cache
         try {
             $this->cache = $GLOBALS['typo3CacheManager']->getCache('linkservice');
-        } 
+        }
         catch (t3lib_cache_exception_NoSuchCache $e) {
             $this->cache = $GLOBALS['typo3CacheFactory']->create(
                 'linkservice',
@@ -32,6 +32,8 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
                 $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['linkservice']['options']
             );
         }
+
+        $this->cache->collectGarbage();
         
         // Get a random field to work on.
         // We have no better algoritm at the moment for grabbing the right 
@@ -59,7 +61,7 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
 
         // Select records having links in the desired field.
         // Join with field status to find out which records.
-        $sql = "SELECT uid, $field_id, field_status.lastcheck
+        $sql = "SELECT uid, pid, $field_id, field_status.lastcheck
                 FROM $table
                 LEFT JOIN tx_linkservice_field_status AS field_status 
                 ON     uid = field_status.record_uid
@@ -67,28 +69,43 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
                   AND  field_status.table_name = '$table'
                 WHERE ($field_id LIKE '%<link http%' OR $field_id LIKE '%<a href=%' )
                   AND (field_status.lastcheck < $renew_lower_limit || field_status.lastcheck IS NULL)
-                  AND deleted = 0
-                  AND hidden = 0
+                  AND  deleted = 0
+                  AND  hidden = 0
 
                 ORDER BY field_status.lastcheck ASC
                 LIMIT $records_per_run;";
 
         $rs = $TYPO3_DB->sql_query($sql);
 
-        while (list($uid, $body, $lastcheck) = $TYPO3_DB->sql_fetch_row($rs)) {
+        while (list($uid, $pid, $body, $lastcheck) = $TYPO3_DB->sql_fetch_row($rs)) {
             $links = $this->resolveLinksOnBody($body);
             $replacementlinks = array();
 
             // Confirm each link
             foreach($links as $link) {
-                $replacementlink = $this->refreshLink(html_entity_decode($link));
 
-                // Clean up the double-&amp; encodings.
-                $replacementlink = preg_replace('/&amp(;amp)*(%3b|;)/i', '&', $replacementlink);
-                $replacementlink = htmlentities($replacementlink);
+                // Only process if the link yields any result
+                $response = $this->refreshLink(html_entity_decode($link));
 
-                if ($replacementlink <> $link) {
-                    $replacementlinks[$link] = $replacementlink;
+                // See if we even have a replacement link
+                if ($response->isPermanentRedirect()) {
+                    $replacementlinks[$link] = htmlentities($response->location);
+                }
+
+                // If we have logging turned on - log if we see anything interesting
+                if ($this->extConf['generate_report']) {
+                    if ($response->isPermanentRedirect()) {
+                        $this->logToPage($pid, $table, $field, $uid, $link, "Link was moved (301) to $response->location");
+                    }
+                    else if ($response->isTemporaryRedirect()) {
+                        $this->logToPage($pid, $table, $field, $uid, $link, "Link resulted in a temporary ($response->statusCode) redirect to $response->location");
+                    }
+                    else if ($response->isUnavailable()) {
+                        $this->logToPage($pid, $table, $field, $uid, $link, "Link was unavailable ($response->statusCode) " . $response->exception_message);
+                    }
+                    else if ($response->isError()) {
+                        $this->logToPage($pid, $table, $field, $uid, $link, "Link resulted in an error ($response->statusCode) " . $response->exception_message);
+                    }
                 }
             }
 
@@ -99,64 +116,28 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
                 }
                 $TYPO3_DB->exec_UPDATEquery($table, "uid = $uid", array($field => $body));
             }
-
+            
             // Mark that we have been there and confirmed links on this field
             $this->markFieldChecked($uid, $field, $table, $lastcheck);
         }
     }
-    
+
     /**
      * Try to refresh a link using http HEAD
      */
     protected function refreshLink($link) {
-        return $this->_refreshLink($link, array($link));
-    }
-    
-    protected function _refreshLink($link, $previous_links = array()) {
-        // If we have descended 10 request into a redirect chain,
-        // we do not wish to continue, and are leaving the original link in place
-        // @TODO: Maybe we should report on loops.
-        if (count($previous_links) > 10) {
-            return $previous_links[0];
-        }
-
         // Peek at the cache first
         $hash = sha1($link);
-        $new_link = $this->cache->get($hash);
+        $response = $this->cache->get($hash);
 
         // If not in cache use the crawler to refresh link
-        if ($new_link === false) {
-            $this->httpQuery->submitUrl($link);
-
-            // We had a new link
-            if ($this->httpQuery->isPermanentRedirect()) {
-                $new_link = $this->httpQuery->getLocation();
-                
-                // Have we not seen this link before
-                // we need to resolve where this leads, maybe we a not done
-                if ( ! in_array($new_link, $previous_links)) {
-                    
-                    // Remember this new link and try deeper
-                    array_push($previous_links, $link);
-                    $new_link = $this->refreshLink($new_link, $previous_links);
-                }
-
-                // We have seen this link before, so we must be in a loop.
-                // This is an error
-                // Do not continue, but return the original link
-                // @TODO: Maybe we should report on loops.
-                else {
-                    return $previous_links[0];
-                }
+        if ($response === false) {
+            if ($response = $this->httpQuery->submitUrl($link)) {
+                $this->cache->set($hash, $response, array(), $this->extConf['link_validity_period'] * 3600);
             }
-            // Errors or no change.
-            else {
-                $new_link = $link;
-            }
-            $this->cache->set($hash, $new_link, array(), $this->extConf['link_validity_period'] * 3600);
         }
-        
-        return $new_link;
+
+        return $response;
     }
 
     /**
@@ -195,6 +176,20 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
             );
             $TYPO3_DB->exec_INSERTquery('tx_linkservice_field_status', $record);
         }
+    }
+
+    protected function logToPage($pid, $table, $field, $uid, $link, $message) {
+        $record = array(
+            'pid' => $pid,
+            'table_name' => $table,
+            'field_name' => $field,
+            'record_uid' => $uid,
+            'link' => $link,
+            'message' => $message,
+            'checktime' => time(),
+        );
+
+        $GLOBALS['TYPO3_DB']->exec_INSERTquery('tx_linkservice_log', $record);
     }
 }
 
