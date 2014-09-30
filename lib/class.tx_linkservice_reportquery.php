@@ -17,23 +17,22 @@ class tx_linkservice_reportquery {
                               ORDER BY pid, table_name, field_name, record_uid");
     }
 
-	/**
-	 * Get the pagetree from current page and down.
-	 *
-	 * @param int $uid - The uid of current page.
-	 * @return array - Array with uids of pages.
-	 */
-	static protected function getTree($uid) {
-        global $TYPO3_DB;
-		$pT = t3lib_div::makeInstance('t3lib_pageTree');
-		$pT->init();
-		$pT->getTree($uid, 99, '');
-		$ids = $pT->ids;
-		return implode(',',$ids);
-	}
+    /**
+     * Get the pagetree from current page and down.
+     *
+     * @param int $uid - The uid of current page.
+     * @return string - uids of pages in comma separated list.
+     */
+    static protected function getTree($uid) {
+        $pT = t3lib_div::makeInstance('t3lib_pageTree');
+        $pT->init();
+        $pT->getTree($uid, 99, '');
+        $ids = $pT->ids;
+        return implode(',',$ids);
+    }
 
     static protected function _getLog($sql) {
-        global $TYPO3_DB, $TCA, $LANG;
+        global $TYPO3_DB, $LANG;
 
         $LANG->includeLLFile('EXT:linkservice/lib/locallang_report.xlf');
 
