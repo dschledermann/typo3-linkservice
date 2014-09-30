@@ -94,17 +94,14 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
 
                 // If we have logging turned on - log if we see anything interesting
                 if ($this->extConf['generate_report']) {
-                    if ($response->isPermanentRedirect()) {
-                        $this->logToPage($pid, $table, $field, $uid, $link, "Link was moved (301) to $response->location");
+                    if ($response->isPermanentRedirect()
+                    ||  $response->isTemporaryRedirect()) {
+                        $this->logToPage($pid, $table, $field, $uid, $link, $response->statusCode, $response->location);
                     }
-                    else if ($response->isTemporaryRedirect()) {
-                        $this->logToPage($pid, $table, $field, $uid, $link, "Link resulted in a temporary ($response->statusCode) redirect to $response->location");
-                    }
-                    else if ($response->isUnavailable()) {
-                        $this->logToPage($pid, $table, $field, $uid, $link, "Link was unavailable ($response->statusCode) " . $response->exception_message);
-                    }
-                    else if ($response->isError()) {
-                        $this->logToPage($pid, $table, $field, $uid, $link, "Link resulted in an error ($response->statusCode) " . $response->exception_message);
+
+                    if ($response->isUnavailable()
+                    ||  $response->isError()) {
+                        $this->logToPage($pid, $table, $field, $uid, $link, $response->statusCode, '', $response->exception_message);
                     }
                 }
             }
@@ -178,14 +175,16 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
         }
     }
 
-    protected function logToPage($pid, $table, $field, $uid, $link, $message) {
+    protected function logToPage($pid, $table, $field, $uid, $link, $status, $location = '', $exception_message = '') {
         $record = array(
             'pid' => $pid,
             'table_name' => $table,
             'field_name' => $field,
             'record_uid' => $uid,
             'link' => $link,
-            'message' => $message,
+            'http_status' => $status,
+            'location' => $location,
+            'exception_message' => $exception_message,
             'checktime' => time(),
         );
 

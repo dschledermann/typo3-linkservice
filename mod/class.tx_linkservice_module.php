@@ -96,30 +96,19 @@ class tx_linkservice_module extends t3lib_SCbase {
     }
 
     protected function errorsHere() {
-        $sql = "SELECT log.*, pages.title
-                FROM tx_linkservice_log AS log
-                LEFT JOIN pages ON log.pid = pages.uid
-                WHERE log.pid = ".intval($this->pageId)."
-                ORDER BY pid";
-
-        $this->renderErrors($sql);
+        $logSet = tx_linkservice_reportquery::getPageLog($this->pageId);
+        $this->renderErrors($logSet);
     }
 
     protected function errorsSubtree() {
-        $sql = "SELECT log.*, pages.title
-                FROM tx_linkservice_log AS log 
-                LEFT JOIN pages ON log.pid = pages.uid 
-                WHERE log.pid IN (".$this->getTree($this->pageId).")
-                ORDER BY pid";
-
-        $this->renderErrors($sql);
+        $logSet = tx_linkservice_reportquery::getSubtreeLog($this->pageId);
+        $this->renderErrors($logSet);
     }
 
-    protected function renderErrors($sql) {
-        global $TYPO3_DB, $TCA, $LANG;
+    protected function renderErrors($logs) {
+        global $TCA, $LANG;
 
         $c = array();
-        $rs = $TYPO3_DB->sql_query($sql);
         $backUrl = 'mod.php?id='.$this->pageId.'&M=web_txlinkserviceM1';
         
         $c[] = '<table>';
@@ -133,99 +122,93 @@ class tx_linkservice_module extends t3lib_SCbase {
         $c[] = '<tbody>';
 
         mb_internal_encoding("UTF-8");
-        $old_pid = 0;
-        $old_uid = 0;
 
-        while ($r = $TYPO3_DB->sql_fetch_assoc($rs)) {
-            // Rotating new page
-            if ($old_pid <> $r['pid']) {
-                $anchor = $r['table_name'].'_'.$r['pid'];
-                $editLink = 'alt_doc.php?returnUrl='.urlencode($backUrl.'#'.$anchor).'&edit[pages]['.$r['pid'].']=edit';
-                $c[] = '<td colspan="3"><a id="'.$anchor.'" href="'.$editLink.'"><h2>'.$r['title'].' ('.$r['pid'].')</h2></a></td>';
+        // Each first-level entry is a page. The key is the page id.
+        // It will contain two entries:
+        // - "title" which is the selected page title
+        // - "tables" which is any table that holds records on the page
+        foreach ($logs as $pid => $page_log) {
 
-                // New line
-                $c[] = '</tr><tr>';
-                $old_pid = $r['pid'];
-            }
-
-            // Rotating new element
-            if ($old_uid <> $r['record_uid']) {
-                // Displaying what kind of field we are dealing with
-                // Make a link to the element
-                $anchor = $r['table_name'].'_'.$r['field_name'].'_'.$r['record_uid'];
-                $editLink = 'alt_doc.php?returnUrl='.urlencode($backUrl.'#'.$anchor).'&edit['.$r['table_name'].']['.$r['record_uid'].']=edit';
-                
-                $c[] = '<td colspan="3" nowrap="nowrap"><a id="'.$anchor.'" href="'.$editLink.'">';
-                $c[] = '<h4>';
-
-                // Displaying language for the element
-                $flag = $this->getLanguageFlag($r['table_name'], $r['record_uid']);
-                if ($flag <> 'default') {
-                    $c[] = '<span class="t3-icon t3-icon-flags t3-icon-flags-'.$flag.' t3-icon-'.$flag.'"></span>';
-                }
-                
-                $c[] = $LANG->sL($TCA[$r['table_name']]['ctrl']['title']).'/'.$LANG->sL($TCA[$r['table_name']]['columns'][$r['field_name']]['label']).$r['record_uid'];
-                $c[] = '</h4>';
-                $c[] = '</a></td>';
-
-                // New line
-                $c[] = '</tr><tr>';
-                $old_uid = $r['record_uid'];
-            }
-
-
-            // Color if any?
-            if ($color = $this->getMessageTypeColor($r)) {
-                $c[] = '<tr style="background-color: '.$color.';">';
-            }
-            else {
-                $c[] = '<tr>';
-            }
-
-            // Render the link part. 
-            // We cap the size of the displayed link to 70 chars not to clutter the ourput
-            if (mb_strlen($r['link']) > 70) {
-                $link_title = mb_substr($r['link'], 0, 66) . '...';
-            }
-            else {
-                $link_title = $r['link'];
-            }
-            $c[] = '<td nowrap="nowrap"><a href="'.$r['link'].'">'.$link_title.'</a></td>';
-
-            // Showing the message
-            // We cap the size of the message to 110 chars
-            if (mb_strlen($r['message']) > 110) {
-                $message_show = mb_substr($r['message'], 0, 106) . '...';
-                $c[] = '<td><span title="'.$r['message'].'">'.$message_show.'</span></td>';
-            }
-            else { 
-                $c[] = '<td>'.$r['message'].'</td>';
-            }
-
-            // Rendering a simple understandable time
-            $c[] = '<td>'.strftime("%Y-%m-%d&nbsp;%H:%M", $r['checktime']).'</td>';
+            // Adding the heading for the page
+            $page_anchor = 'pages_'.$pid;
+            $page_editLink = 'alt_doc.php?returnUrl='.urlencode($backUrl.'#'.$page_anchor).'&edit[pages]['.$pid.']=edit';
+            $c[] = '<tr>';
+            $c[] = '<td colspan="3"><a id="'.$page_anchor.'" href="'.$page_editLink.'"><h2>'.$page_log['title'].' ('.$pid.')</h2></a></td>';
             $c[] = '</tr>';
+
+            // Traverse each of the tables with records on the page
+            foreach ($page_log['tables'] as $table_name => $records) {
+
+                // Make a header for the table. Often there might only be one.
+                $c[] = '<tr>';
+                $c[] = '<td colspan="3"><h3>'.$LANG->sL($TCA[$table_name]['ctrl']['title']).'</h3></td>';
+                $c[] = '</tr>';
+
+                // Traverse each record on the table
+                foreach ($records as $uid => $record) {
+
+                    // Traverse each field that holds links reported.
+                    // The overwelming possibility is that only one field is in use here.
+                    foreach($record as $field_name => $field) {
+
+                        // Make a header for the field/element
+                        $anchor = $table_name.'_'.$field_name.'_'.$uid;
+                        $editLink = 'alt_doc.php?returnUrl='.urlencode($backUrl.'#'.$anchor).'&edit['.$table_name.']['.$uid.']=edit';
+
+                        $c[] = '<tr>';
+                        $c[] = '<td colspan="3"><h4><a id="'.$anchor.'" href="'.$editLink.'">#'.$LANG->sL($TCA[$table_name]['columns'][$field_name]['label']).$uid.'</a></h4></td>';
+                        $c[] = '</tr>';
+
+                        // Traverse each link structure in the field
+                        // A link structure will have four fields:
+                        // - "link" - the link in question
+                        // - "message" - a summary on what is going on
+                        // - "checktime" - a display of the time of detection
+                        // - "type_color" - a color this row should be marked.
+                        foreach ($field as $l) {
+
+                            // Setting color only if the reporting states so
+                            if ($l['type_color']) {
+                                $c[] = '<tr style="background-color: '.$l['type_color'].'">';
+                            }
+                            else {
+                                $c[] = '<tr>';
+                            }
+
+                            // Displaying capped link
+                            if (mb_strlen($l['link']) > 70) {
+                                $link_title = mb_substr($l['link'], 0, 66) . '...';
+                            }
+                            else {
+                                $link_title = $l['link'];
+                            }
+                            $c[] = '<td><a href="'.$l['link'].'">'.$link_title.'</a></td>';
+
+
+                            // Displaying capped message
+                            if (mb_strlen($l['message']) > 110) {
+                                $message_show = mb_substr($l['message'], 0, 106) . '...';
+                                $c[] = '<td><span title="'.$l['message'].'">'.$message_show.'</span></td>';
+                            }
+                            else { 
+                                $c[] = '<td>'.$l['message'].'</td>';
+                            }
+
+                            // The time is straight forward
+                            $c[]= '<td>'.$l['checktime'].'</td>';
+                            $c[] = '</tr>';
+                        }
+                    }
+                }
+            }
         }
+
         $c[] = '</tbody>';
         $c[] = '</table>';
         
         $this->content .= implode("\n", $c);
     }
 
-	/**
-	 * Get the pagetree from current page and down.
-	 *
-	 * @param int $uid - The uid of current page.
-	 * @return array - Array with uids of pages.
-	 */
-	protected function getTree($uid) {
-        global $TYPO3_DB;
-		$pT = t3lib_div::makeInstance('t3lib_pageTree');
-		$pT->init();
-		$pT->getTree($uid, 99, '');
-		$ids = $pT->ids;
-		return implode(',',$ids);
-	}
 
     private $elements_flags = array();
     private $flags = array();
@@ -259,25 +242,6 @@ class tx_linkservice_module extends t3lib_SCbase {
         }
         
         return $this->element_flags[$table][$element];
-    }
-
-    protected function getMessageTypeColor($record) {
-        // Missing
-        if (preg_match('/\(4[0-1][0-9]\)/', $record['message'])) {
-            return '#eee';
-        }
-        // Error
-        else if (preg_match('/\(5[0-1][0-9]\)/', $record['message'])) {
-            return '#ff0909';
-        }
-        // Some redirect
-        else if (preg_match('/\(30[123]\)/', $record['message'])) {
-            return '#fffe91';
-        }
-        // Other stuff
-        else {
-            return '';
-        }
     }
 }
 
