@@ -61,7 +61,7 @@ Introduction
 What does it do
 ---------------
 Linkservice is a tool that can maintain the external links in you TYPO3 installation.
-It does so but crawling each link using the CURL HTTP-client and listening for "301 Moved Permanently" responses.
+It does so by crawling each link using the CURL HTTP-client and listening for "301 Moved Permanently" responses.
 
 
 Configuration
