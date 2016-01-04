@@ -1,0 +1,6 @@
+{
+    "name": "dschledermann/linkservice",
+    "description": "Refreshes links in elements by issuing HEAD-request to them. Redirect are followed and updated back into the tables.",
+    "type": "typo3-cms-extension",
+    "version": "2.0.0"
+}
