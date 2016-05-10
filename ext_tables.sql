@@ -7,6 +7,7 @@ CREATE TABLE tx_linkservice_field_status (
 	field_name varchar(255) DEFAULT 'bodytext' NOT NULL,
 	table_name varchar(255) DEFAULT 'tt_content' NOT NULL,
 	record_uid int(11) DEFAULT '0' NOT NULL,
+	KEY record_ref (record_uid),
 	KEY lastcheck (lastcheck)
 ) ENGINE=InnoDB;
 

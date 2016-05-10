@@ -78,38 +78,41 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
         $rs = $TYPO3_DB->sql_query($sql);
 
         while (list($uid, $pid, $body, $lastcheck) = $TYPO3_DB->sql_fetch_row($rs)) {
-            $links = $this->resolveLinksOnBody($body);
-            $replacementlinks = array();
+
+			// This gives both the entire linkcontent ie. <a href="http://www.example.com/some/path" or <link http://www.example.com/some/path>
+			// And the list of links ie. http://www.example.com/some/path
+			// We need to have both to have a more robust link replacement.
+            list($linkcontexts, $links) = $this->resolveLinksOnBody($body);
+
+            $replacements = array();
 
             // Confirm each link
-            foreach($links as $link) {
+            foreach($links as $i => $link) {
 
                 // Only process if the link yields any result
                 $response = $this->refreshLink(html_entity_decode($link));
 
                 // See if we even have a replacement link
                 if ($response->isPermanentRedirect()) {
-                    $replacementlinks[$link] = htmlentities($response->location);
+					$replacements[$i] = str_replace($link, htmlentities($response->location), $linkcontexts[$i]);
                 }
 
                 // If we have logging turned on - log if we see anything interesting
                 if ($this->extConf['generate_report']) {
-                    if ($response->isPermanentRedirect()
-                    ||  $response->isTemporaryRedirect()) {
+                    if ($response->isPermanentRedirect() ||  $response->isTemporaryRedirect()) {
                         $this->logToPage($pid, $table, $field, $uid, $link, $response->statusCode, $response->location);
                     }
 
-                    if ($response->isUnavailable()
-                    ||  $response->isError()) {
+                    if ($response->isUnavailable() ||  $response->isError()) {
                         $this->logToPage($pid, $table, $field, $uid, $link, $response->statusCode, '', $response->exception_message);
                     }
                 }
             }
 
             // If any links has changed, then replace back into the body
-            if (count($replacementlinks)) {
-                foreach ($replacementlinks as $link => $replacementlink) {
-                    $body = str_replace($link, $replacementlink, $body);
+            if (count($replacements)) {
+                foreach ($replacements as $i => $replacement) {
+                    $body = str_replace($linkcontexts[$i], $replacement, $body);
                 }
                 $TYPO3_DB->exec_UPDATEquery($table, "uid = $uid", array($field => $body));
             }
@@ -142,15 +145,12 @@ class tx_linkservice_linkrefresh extends tx_scheduler_Task {
      */
     protected function resolveLinksOnBody($body) {
         // Get TYPO3 RTE style links 
-        preg_match_all('/<link (http[^ >]+)/i', $body, $matches);
-        $t3links = $matches[1];
+        preg_match_all('/<link (http[^ >]+)>/i', $body, $t3links);
 
         // Get HTML style precoded links
-        preg_match_all('/<a href="(http[^"]+)"/i', $body, $matches);
-        $htmllinks = $matches[1];
+        preg_match_all('/<a href="(http[^"]+)"/i', $body, $htmllinks);
 
-        $total_links = array_unique(array_merge($t3links, $htmllinks));
-        return $total_links;
+        return array(array_merge($t3links[0], $htmllinks[0]), array_merge($t3links[1], $htmllinks[1]));
     }
 
     protected function markFieldChecked($uid, $field, $table, $lastcheck) {
