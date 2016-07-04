@@ -3,13 +3,13 @@
 /** 
  * Registering scheduler
  */
-$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['tx_linkservice_linkrefresh'] = array(
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['Dschledermann\Linkservice\Scheduler\Linkrefresh'] = array(
 	'extension' => $_EXTKEY,
 	'title' => 'Link refresher',
 	'description' => 'Traverse and refresh external links.',
 );
 
-$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['tx_linkservice_clearlog'] = array(
+$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['Dschledermann\Linkservice\Scheduler\Clearlog'] = array(
 	'extension' => $_EXTKEY,
 	'title' => 'Link log cleaner',
 	'description' => 'Clean out stale link refresh log records.',
@@ -20,7 +20,7 @@ $GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['scheduler']['tasks']['tx_linkservice_
 if (!is_array($GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['linkservice'])) {
 	// Set cache to use string for frontend.
 	$GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['linkservice'] = array(
-		'frontend' => 't3lib_cache_frontend_VariableFrontend',
-		'backend' => 't3lib_cache_backend_DbBackend',
+		'frontend' => 'TYPO3\\CMS\\Core\\Cache\\Frontend\\VariableFrontend',
+		'backend' => 'TYPO3\\CMS\\Core\\Cache\\Backend\\Typo3DatabaseBackend',
 		'options' => array());
 }

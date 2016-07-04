@@ -1,6 +1,11 @@
 <?php
 
-class tx_linkservice_httpheadquery {
+namespace Dschledermann\Linkservice\Http;
+
+use Exception;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+
+class Headquery {
     // Settings
     public $http_timeout = 5;
 
@@ -24,7 +29,7 @@ class tx_linkservice_httpheadquery {
         }
 
         $protocol = $parts['scheme'];
-        $response = t3lib_div::makeInstance('tx_linkservice_httpresponse');
+        $response = GeneralUtility::makeInstance('Dschledermann\\Linkservice\\Http\\Response');
 
         try {
             // We will not handle urls using usernames/passwords
@@ -73,3 +78,4 @@ class tx_linkservice_httpheadquery {
         return $response;
     }
 }
+

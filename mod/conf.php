@@ -4,4 +4,4 @@ $MCONF['name'] = 'web_txlinkserviceM1';
 $MCONF['access'] = 'user,group';
 $MCONF['script'] = '_DISPATCH';
 $MLANG['default']['tabs_images']['tab'] = 'module_icon.gif';
-$MLANG['default']['ll_ref'] = 'LLL:EXT:linkservice/mod/locallang_mod.xlf';
+$MLANG['default']['ll_ref'] = 'LLL:EXT:linkservice/Lang/locallang_mod.xlf';

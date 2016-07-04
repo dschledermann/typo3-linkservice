@@ -1,6 +1,10 @@
 <?php
 
-class tx_linkservice_reportquery {
+namespace Dschledermann\Linkservice\Report;
+
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+
+class Query {
     static public function getPageLog($pid) {
         return self::_getLog("SELECT log.*, pages.title
                               FROM tx_linkservice_log AS log
@@ -24,7 +28,7 @@ class tx_linkservice_reportquery {
      * @return string - uids of pages in comma separated list.
      */
     static protected function getTree($uid) {
-        $pT = t3lib_div::makeInstance('t3lib_pageTree');
+        $pT = GeneralUtility::makeInstance('TYPO3\\CMS\\Backend\\Tree\\View\\PageTreeView');
         $pT->init();
         $pT->getTree($uid, 99, '');
         $ids = $pT->ids;
@@ -34,7 +38,7 @@ class tx_linkservice_reportquery {
     static protected function _getLog($sql) {
         global $TYPO3_DB, $LANG;
 
-        $LANG->includeLLFile('EXT:linkservice/lib/locallang_report.xlf');
+        $LANG->includeLLFile('EXT:linkservice/Lang/locallang_report.xlf');
 
         $rs = $TYPO3_DB->sql_query($sql);
         $logs = array();
@@ -77,3 +81,4 @@ class tx_linkservice_reportquery {
         return $logs;
     }
 }
+

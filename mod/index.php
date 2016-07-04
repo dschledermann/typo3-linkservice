@@ -1,5 +1,5 @@
 <?php
-$SOBE = t3lib_div::makeInstance('tx_linkservice_module');
+$SOBE = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('Dschledermann\Linkservice\Module');
 $SOBE->init();
 $SOBE->main();
 $SOBE->printContent();

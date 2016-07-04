@@ -1,6 +1,10 @@
 <?php
 
-class tx_linkservice_httpresponse {
+namespace Dschledermann\Linkservice\Http;
+
+use Exception;
+
+class Response {
     public $statusCode = 200;
     public $location = '';
     public $exception_message = '';

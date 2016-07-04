@@ -1,9 +1,15 @@
 <?php
 
-class tx_linkservice_module extends t3lib_SCbase {
+namespace Dschledermann\Linkservice;
+
+use TYPO3\CMS\Backend\Utility\BackendUtility;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use Dschledermann\Linkservice\Report\Query;
+
+class Module extends \TYPO3\CMS\Backend\Module\BaseScriptClass {
     public function init() {
         global $LANG;
-        $LANG->includeLLFile('EXT:linkservice/mod/locallang.xlf');
+        $LANG->includeLLFile('EXT:linkservice/Lang/locallang_modlabels.xlf');
         parent::init();
     }
 
@@ -21,13 +27,13 @@ class tx_linkservice_module extends t3lib_SCbase {
     public function main() {
 		global $BE_USER, $LANG, $BACK_PATH, $TCA_DESCR, $TCA, $CLIENT, $TYPO3_CONF_VARS, $TYPO3_DB;
 
-		$this->pageinfo = t3lib_BEfunc::readPageAccess($this->id, $this->perms_clause);
+		$this->pageinfo = BackendUtility::readPageAccess($this->id, $this->perms_clause);
 		$access = is_array($this->pageinfo) ? 1 : 0;
 		$this->pageId = $this->pageinfo['uid'];
 
 		if (($this->id && $access) || ($BE_USER->user['admin'] && !$this->id)) {
 			// Draw the header.
-			$this->doc = t3lib_div::makeInstance('template');
+			$this->doc = GeneralUtility::makeInstance('template');
 			$this->doc->backPath = $BACK_PATH;
 			$this->doc->form = '<form action="mod.php?M=web_txvalidateurlsM1" method="POST">';
 			// JavaScript
@@ -47,12 +53,12 @@ class tx_linkservice_module extends t3lib_SCbase {
 				</script>
 			';
 
-			$headerSection = $this->doc->getHeader('pages', $this->pageinfo, $this->pageinfo['_thePath']) . '<br />' . $LANG->sL('LLL:EXT:lang/locallang_core.xml:labels.path') . ': ' . t3lib_div::fixed_lgd_cs($this->pageinfo['_thePath'], 50);
+			$headerSection = $this->doc->getHeader('pages', $this->pageinfo, $this->pageinfo['_thePath']) . '<br />' . $LANG->sL('LLL:EXT:lang/locallang_core.xml:labels.path') . ': ' . GeneralUtility::fixed_lgd_cs($this->pageinfo['_thePath'], 50);
 
 			$this->content .= $this->doc->startPage($LANG->getLL('title'));
 			$this->content .= $this->doc->header($LANG->getLL('title'));
 			$this->content .= $this->doc->spacer(5);
-			$this->content .= $this->doc->section('', $this->doc->funcMenu($headerSection, t3lib_BEfunc::getFuncMenu($this->id, 'SET[function]', $this->MOD_SETTINGS['function'], $this->MOD_MENU['function'])));
+			$this->content .= $this->doc->section('', $this->doc->funcMenu($headerSection, BackendUtility::getFuncMenu($this->id, 'SET[function]', $this->MOD_SETTINGS['function'], $this->MOD_MENU['function'])));
 			$this->content .= $this->doc->divider(5);
 
 			// Render content:
@@ -68,7 +74,7 @@ class tx_linkservice_module extends t3lib_SCbase {
 		}
 		else {
 			// If no access or if ID == zero
-			$this->doc = t3lib_div::makeInstance('template');
+			$this->doc = GeneralUtility::makeInstance('TYPO3\CMS\Backend\Template\DocumentTemplate');
 			$this->doc->backPath = $BACK_PATH;
 			$this->content .= $this->doc->startPage($LANG->getLL('title'));
 			$this->content .= $this->doc->header($LANG->getLL('title'));
@@ -96,12 +102,12 @@ class tx_linkservice_module extends t3lib_SCbase {
     }
 
     protected function errorsHere() {
-        $logSet = tx_linkservice_reportquery::getPageLog($this->pageId);
+        $logSet = Query::getPageLog($this->pageId);
         $this->renderErrors($logSet);
     }
 
     protected function errorsSubtree() {
-        $logSet = tx_linkservice_reportquery::getSubtreeLog($this->pageId);
+        $logSet = Query::getSubtreeLog($this->pageId);
         $this->renderErrors($logSet);
     }
 
