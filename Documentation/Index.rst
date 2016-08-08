@@ -3,10 +3,7 @@
 .. --------------------------------------------------
 .. -*- coding: utf-8 -*- with BOM.
 
-.. include:: Includes.txt
-
 .. _start:
-
 
 ===========
 Linkservice
@@ -28,7 +25,7 @@ Linkservice
       seo,link,refresh,validation,crawler
 
    :Copyright:
-      2014
+      2014-2016
 
    :Author:
       Daniel Schledermann
