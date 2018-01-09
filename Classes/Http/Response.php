@@ -27,7 +27,7 @@ class Response {
         }
         // A relative location
         else if (preg_match('|^/|', $new_location)) {
-            $this->location = 'http://'. $old_parts['host'] . $new_location;
+            $this->location = $old_parts['scheme'] . '://'. $old_parts['host'] . $new_location;
         }
         // An invalid location
         else {
