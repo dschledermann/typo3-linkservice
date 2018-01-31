@@ -3,6 +3,8 @@
 namespace Dschledermann\Linkservice\Scheduler;
 
 use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Cache\CacheManager;
+
 
 class Linkrefresh extends \TYPO3\CMS\Scheduler\Task\AbstractTask {
 	// The configuration from ext_conf_template.txt
@@ -21,22 +23,11 @@ class Linkrefresh extends \TYPO3\CMS\Scheduler\Task\AbstractTask {
         $this->extConf['field_linkservice'] = explode(' ', $this->extConf['field_linkservice']);
 
         // Setting up crawler
-        $this->httpQuery = GeneralUtility::makeInstance('Dschledermann\Linkservice\Http\Headquery');
+        $this->httpQuery = GeneralUtility::makeInstance('Dschledermann\\Linkservice\\Http\\Headquery');
         $this->httpQuery->http_timeout = $this->extConf['http_timeout'];
 
         // Setting up cache
-        try {
-            $this->cache = $GLOBALS['typo3CacheManager']->getCache('linkservice');
-        }
-        catch (\TYPO3\CMS\Core\Cache\Exception\NoSuchCacheException $e) {
-            $this->cache = $GLOBALS['typo3CacheFactory']->create(
-                'linkservice',
-                $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['linkservice']['frontend'],
-                $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['linkservice']['backend'],
-                $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations']['linkservice']['options']
-            );
-        }
-
+		$this->cache = GeneralUtility::makeInstance(CacheManager::class)->getCache('linkservice');
         $this->cache->collectGarbage();
         
         // Get a random field to work on.
