@@ -27,13 +27,25 @@ class Module extends \TYPO3\CMS\Backend\Module\BaseScriptClass {
     public function main() {
 		global $BE_USER, $LANG, $BACK_PATH, $TCA_DESCR, $TCA, $CLIENT, $TYPO3_CONF_VARS, $TYPO3_DB;
 
+		$this->MCONF['name'] = 'web_txlinkserviceM';
+		$this->MCONF['access'] = 'user,group';
+		$this->MCONF['script'] = '_DISPATCH';
+		$this->MLANG['default']['tabs_images']['tab'] = 'module_icon.gif';
+		$this->MLANG['default']['ll_ref'] = 'LLL:EXT:linkservice/Lang/locallang_mod.xlf';
+
+		$LANG->includeLLFile('LLL:EXT:linkservice/Lang/locallang_mod.xlf');
+		$LANG->includeLLFile('EXT:linkservice/Lang/locallang_modlabels.xlf');
+
+		$this->init();
+		$this->menuConfig();
+
 		$this->pageinfo = BackendUtility::readPageAccess($this->id, $this->perms_clause);
 		$access = is_array($this->pageinfo) ? 1 : 0;
 		$this->pageId = $this->pageinfo['uid'];
 
 		if (($this->id && $access) || ($BE_USER->user['admin'] && !$this->id)) {
 			// Draw the header.
-			$this->doc = GeneralUtility::makeInstance('template');
+			$this->doc = GeneralUtility::makeInstance('TYPO3\\CMS\\Backend\\Template\\DocumentTemplate');
 			$this->doc->backPath = $BACK_PATH;
 			$this->doc->form = '<form action="mod.php?M=web_txvalidateurlsM1" method="POST">';
 			// JavaScript
@@ -57,30 +69,31 @@ class Module extends \TYPO3\CMS\Backend\Module\BaseScriptClass {
 
 			$this->content .= $this->doc->startPage($LANG->getLL('title'));
 			$this->content .= $this->doc->header($LANG->getLL('title'));
-			$this->content .= $this->doc->spacer(5);
+			$this->content .= '<div style="padding-top: 5px;"></div>';
 			$this->content .= $this->doc->section('', $this->doc->funcMenu($headerSection, BackendUtility::getFuncMenu($this->id, 'SET[function]', $this->MOD_SETTINGS['function'], $this->MOD_MENU['function'])));
-			$this->content .= $this->doc->divider(5);
+			$this->content .= '<div style="padding-top: 5px;"></div>';
 
 			// Render content:
 			$this->moduleContent();
 
 			// ShortCut
 			if ($BE_USER->mayMakeShortcut()) {
-				$this->content .= $this->doc->spacer(20) . $this->doc->section('', $this->doc->makeShortcutIcon('id', implode(',', array_keys($this->MOD_MENU)), $this->MCONF['name']));
+				$this->content .= '<div style="padding-top: 20px;"></div>' . $this->doc->section('', $this->doc->makeShortcutIcon('id', implode(',', array_keys($this->MOD_MENU)), $this->MCONF['name']));
 			}
 
-			$this->content .= $this->doc->spacer(10);
+			$this->content .= '<div style="padding-top: 10px;"></div>';
 			$this->content .= '</div>';
 		}
 		else {
 			// If no access or if ID == zero
-			$this->doc = GeneralUtility::makeInstance('TYPO3\CMS\Backend\Template\DocumentTemplate');
+			$this->doc = GeneralUtility::makeInstance('TYPO3\\CMS\\Backend\\Template\\DocumentTemplate');
 			$this->doc->backPath = $BACK_PATH;
 			$this->content .= $this->doc->startPage($LANG->getLL('title'));
 			$this->content .= $this->doc->header($LANG->getLL('title'));
-			$this->content .= $this->doc->spacer(5);
-			$this->content .= $this->doc->spacer(10);
+			$this->content .= '<div style="padding-top: 15px;"></div>';
 		}
+
+		$this->printContent();
 	}
 
     public function printContent() {
@@ -115,7 +128,7 @@ class Module extends \TYPO3\CMS\Backend\Module\BaseScriptClass {
         global $TCA, $LANG;
 
         $c = array();
-        $backUrl = 'mod.php?id='.$this->pageId.'&M=web_txlinkserviceM1';
+        $backUrl = $_SERVER['REQUEST_URI'];
         
         $c[] = '<table>';
         $c[] = '<thead>';
@@ -133,11 +146,12 @@ class Module extends \TYPO3\CMS\Backend\Module\BaseScriptClass {
         // It will contain two entries:
         // - "title" which is the selected page title
         // - "tables" which is any table that holds records on the page
+
         foreach ($logs as $pid => $page_log) {
 
             // Adding the heading for the page
             $page_anchor = 'pages_'.$pid;
-            $page_editLink = 'alt_doc.php?returnUrl='.urlencode($backUrl.'#'.$page_anchor).'&edit[pages]['.$pid.']=edit';
+            $page_editLink = BackendUtility::getModuleUrl('record_edit') . '&returnUrl='.urlencode($backUrl.'#'.$page_anchor).'&edit[pages]['.$pid.']=edit';
             $c[] = '<tr>';
             $c[] = '<td colspan="3"><a id="'.$page_anchor.'" href="'.$page_editLink.'"><h2>'.$page_log['title'].' ('.$pid.')</h2></a></td>';
             $c[] = '</tr>';
@@ -159,7 +173,7 @@ class Module extends \TYPO3\CMS\Backend\Module\BaseScriptClass {
 
                         // Make a header for the field/element
                         $anchor = $table_name.'_'.$field_name.'_'.$uid;
-                        $editLink = 'alt_doc.php?returnUrl='.urlencode($backUrl.'#'.$anchor).'&edit['.$table_name.']['.$uid.']=edit';
+                        $editLink = BackendUtility::getModuleUrl('record_edit') . '&returnUrl='.urlencode($backUrl.'#'.$anchor).'&edit['.$table_name.']['.$uid.']=edit';
 
                         $c[] = '<tr>';
                         $c[] = '<td colspan="3"><h4><a id="'.$anchor.'" href="'.$editLink.'">#'.$LANG->sL($TCA[$table_name]['columns'][$field_name]['label']).$uid.'</a></h4></td>';
